@@ -29,7 +29,7 @@ Manufacturer "Brother"
 Version "@BRLASER_VERSION@"
 
 // Each filter provided by the driver...
-Filter application/vnd.cups-raster 33 rastertobrlaser
+Filter application/vnd.cups-raster 33 @BRLASER_FILTER@
 
 // Supported resolutions.
 // The 1200dpi mode is weird: we need to send 1200x1200dpi raster

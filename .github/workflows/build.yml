@@ -6,15 +6,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        compiler: [ clang++, gcc++ ]
+        compiler: [ clang++, g++ ]
     steps:
       - name: Add repository
         run: sudo apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
       - name: Install packages
         run: sudo apt install libcups2-dev
       - uses: actions/checkout@v3
-      - name: Configure
-        run: cmake .
       - name: Make
         run: make
         env:
@@ -26,11 +24,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        compiler: [ clang++, gcc++ ]
+        compiler: [ clang++, g++ ]
     steps:
       - uses: actions/checkout@v3
-      - name: Configure
-        run: cmake .
       - name: Make
         run: make
         env:

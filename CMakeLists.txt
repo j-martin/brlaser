@@ -1,4 +1,11 @@
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.1...3.31)
+
+# An in-source build would overwrite the top-level wrapper Makefile.
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
+  message(FATAL_ERROR "In-source builds are not supported. Run 'make' or "
+    "'cmake -B build' instead, after removing CMakeCache.txt and CMakeFiles/.")
+endif()
+
 project(brlaser CXX)
 set(BRLASER_VERSION "6")
 
@@ -56,6 +63,17 @@ if(NOT CUPS_CONFIG)
   message(FATAL_ERROR "cups-config command not found. Are the CUPS development packages installed?")
 endif()
 
+# On macOS the system CUPS directories are protected by SIP, so install
+# the filter and pre-compiled PPDs under /Library/Printers instead.
+if(APPLE)
+  if(NOT CUPS_SERVER_BIN)
+    set(CUPS_SERVER_BIN "/Library/Printers/brlaser")
+  endif()
+  if(NOT CUPS_PPD_DIR)
+    set(CUPS_PPD_DIR "/Library/Printers/PPDs/Contents/Resources")
+  endif()
+endif()
+
 if(NOT CUPS_DATA_DIR)
   execute_process(
     COMMAND "${CUPS_CONFIG}" --datadir
@@ -98,6 +116,14 @@ endif()
 
 ## Build instructions
 
+# PPDs installed outside the CUPS server directory must reference the
+# filter by absolute path.
+if(CUPS_PPD_DIR)
+  set(BRLASER_FILTER "${CUPS_SERVER_BIN}/filter/rastertobrlaser")
+else()
+  set(BRLASER_FILTER "rastertobrlaser")
+endif()
+
 configure_file(
   "${PROJECT_SOURCE_DIR}/brlaser.drv.in"
   "${PROJECT_BINARY_DIR}/brlaser.drv")
@@ -135,6 +161,27 @@ add_dependencies(check test_lest test_line test_block test_job)
 install(
   TARGETS rastertobrlaser
   DESTINATION "${CUPS_SERVER_BIN}/filter")
-install(
-  FILES "${PROJECT_BINARY_DIR}/brlaser.drv"
-  DESTINATION "${CUPS_DATA_DIR}/drv")
+if(CUPS_PPD_DIR)
+  # Compile the driver information file into PPDs, since macOS does not
+  # generate PPDs from .drv files at runtime.
+  find_program(PPDC NAMES ppdc)
+  if(NOT PPDC)
+    message(FATAL_ERROR "ppdc command not found. It is needed to generate PPD files.")
+  endif()
+  add_custom_command(
+    OUTPUT "${PROJECT_BINARY_DIR}/ppd.stamp"
+    COMMAND "${CMAKE_COMMAND}" -E remove_directory "${PROJECT_BINARY_DIR}/ppd"
+    COMMAND "${PPDC}" -d "${PROJECT_BINARY_DIR}/ppd" "${PROJECT_BINARY_DIR}/brlaser.drv"
+    COMMAND "${CMAKE_COMMAND}" -E touch "${PROJECT_BINARY_DIR}/ppd.stamp"
+    DEPENDS "${PROJECT_BINARY_DIR}/brlaser.drv"
+    COMMENT "Generating PPD files")
+  add_custom_target(ppds ALL DEPENDS "${PROJECT_BINARY_DIR}/ppd.stamp")
+  install(
+    DIRECTORY "${PROJECT_BINARY_DIR}/ppd/"
+    DESTINATION "${CUPS_PPD_DIR}"
+    FILE_PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
+else()
+  install(
+    FILES "${PROJECT_BINARY_DIR}/brlaser.drv"
+    DESTINATION "${CUPS_DATA_DIR}/drv")
+endif()

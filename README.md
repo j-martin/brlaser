@@ -1,6 +1,23 @@
 brlaser: Brother laser printer driver
 =====================================
 
+> **About this fork:** this is a fork of
+> [pdewacht/brlaser](https://github.com/pdewacht/brlaser) with changes
+> to build and install it on recent versions of macOS (tested on
+> macOS 27 with CMake 4). Compared to upstream it:
+>
+> * works with CMake 4, which dropped support for the old
+>   `cmake_minimum_required` version used upstream;
+> * installs the filter in `/Library/Printers/brlaser/filter` and
+>   pre-generated PPD files in `/Library/Printers/PPDs/Contents/Resources`,
+>   since the system CUPS directories are protected by System Integrity
+>   Protection (SIP);
+> * adds a wrapper `Makefile` so building and installing is a single
+>   `sudo make install`.
+>
+> The driver itself is unchanged, and on Linux it installs to the same
+> locations as upstream.
+
 brlaser is a CUPS driver for Brother laser printers.
 
 Although most Brother printers support a standard printer language
@@ -83,13 +100,29 @@ To compile brlaser you'll need CMake and the CUPS development packages
 (libcups2-dev, libcupsimage2-dev or similar).
 
 Get the code by cloning the git repo <!-- or downloading the [latest
-release] -->. Compile and install with these commands:
+release] -->. Then build and install with a single command:
 
-    cmake .
-    make
     sudo make install
 
+This configures and compiles the driver in the `build/` directory
+(as your regular user, so the build tree stays editable) and then
+installs it. Other useful targets:
+
+    make          # configure and build only
+    make check    # build and run the tests
+    make clean    # remove the build directory
+
+Extra CMake options can be passed with `CMAKE_FLAGS`, e.g.
+`make CMAKE_FLAGS=-DCMAKE_BUILD_TYPE=Release`. These only take effect
+when `build/` is first configured, so run `make clean` before changing
+them. You can also use CMake directly, as long as you build out of
+tree (`cmake -S . -B build`).
+
 It might be needed to restart CUPS after this.
+
+On macOS the system CUPS directories are read-only, so the filter is
+installed to `/Library/Printers/brlaser/filter` and pre-generated PPD
+files (built with `ppdc`) to `/Library/Printers/PPDs/Contents/Resources`.
 
 [latest release]: https://github.com/pdewacht/brlaser/releases/latest
 
